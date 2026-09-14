@@ -543,7 +543,6 @@ details > summary::-webkit-details-marker { display: none; }
 <p class="text-xs text-gray-500 mt-0.5">기기에 저장된 모든 견적을 폴더별로 관리합니다.</p>
 </div>
 <div class="flex items-center gap-3">
-<button onclick="loadFromGoogleSheet()" class="text-[11px] bg-green-100 text-green-700 font-bold px-2 py-1.5 rounded border border-green-200 hover:bg-green-200 flex items-center gap-1 shadow-sm">🔄 구글시트에서 불러오기</button>
 <button onclick="document.getElementById('manage-quote-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 font-bold text-2xl leading-none">×</button>
 </div>
 </div>
@@ -620,11 +619,6 @@ details > summary::-webkit-details-marker { display: none; }
 <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-blue-600 text-[11px] font-bold underline inline-block mt-1">👉 구글 AI 스튜디오 무료 API 키 발급받기</a>
 </div>
 <div>
-<label class="block text-xs font-bold text-gray-700 mb-1">구글 시트 연동 URL (Apps Script Web App)</label>
-<input type="text" id="settings-sheet-url" class="input-box text-xs" placeholder="https://script.google.com/macros/s/...">
-<p class="text-[10px] text-gray-500 mt-1">입력 시 견적 저장/삭제 작업이 구글 시트와 백그라운드 동기화됩니다.</p>
-</div>
-<div>
 <label class="block text-xs font-bold text-gray-700 mb-1">하이프리드 지원/페이백 요율표 (JSON)</label>
 <textarea id="set-hipreed" class="input-box text-[11px] font-mono h-28" spellcheck="false"></textarea>
 </div>
@@ -697,7 +691,6 @@ let currentAIMode = 'nonbuy'; let cachedAIMessages = { nonbuy: '', bought: '' };
 
 function openAdminSettings() {
 document.getElementById('settings-api-key').value = localStorage.getItem('gemini_api_key') || '';
-document.getElementById('settings-sheet-url').value = localStorage.getItem('google_sheet_url') || '';
 document.getElementById('set-hipreed').value = JSON.stringify(HIPREED, null, 2); document.getElementById('set-cards').value = JSON.stringify(SUB_CARDS, null, 2);
 document.getElementById('admin-settings-modal').classList.remove('hidden'); document.getElementById('admin-settings-modal').classList.add('flex');
 }
@@ -706,7 +699,6 @@ function saveAdminSettings() {
 try {
 const newHipreed = JSON.parse(document.getElementById('set-hipreed').value); const newCards = JSON.parse(document.getElementById('set-cards').value);
 localStorage.setItem('gemini_api_key', document.getElementById('settings-api-key').value.trim());
-localStorage.setItem('google_sheet_url', document.getElementById('settings-sheet-url').value.trim());
 localStorage.setItem('app_hipreed_rates', JSON.stringify(newHipreed)); localStorage.setItem('app_sub_cards', JSON.stringify(newCards));
 HIPREED = newHipreed; SUB_CARDS = newCards;
 document.getElementById('admin-settings-modal').classList.add('hidden'); updateCardTiers(); calc();
@@ -855,8 +847,8 @@ currentEditingQuoteId = newQuote.id;
 }
 
 saveFolders(folders); 
-const savedFolder = folders.find(f => f.id === currentEditingFolderId);
-if (savedFolder) syncWithGoogleSheet('upsert_folder', savedFolder);
+
+
 document.getElementById('save-quote-modal').classList.add('hidden');
 showModal('저장 완료 ✅', '기기에 견적이 안전하게 저장되었습니다.', true, false);
 }
@@ -1021,12 +1013,12 @@ showModal('복원 완료! ✅', `견적이 성공적으로 화면에 세팅되�
 
 function confirmDeleteFolder(event, folderId) {
 event.preventDefault(); // 아코디언 토글 방지
-showConfirmModal('폴더 삭제 ⚠️', '이 고객 폴더와 포함된 <b>모든 견적</b>이 기기에서 완전히 삭제됩니다.<br>계속하시겠습니까?<br><br><label class="flex items-center justify-center gap-2 text-sm text-gray-700 bg-gray-50 p-2 rounded border border-gray-200 cursor-pointer"><input type="checkbox" id="sync-delete-folder-cb" checked class="w-4 h-4 text-rose-500"> <span>구글 시트에서도 함께 삭제</span></label>', '삭제하기', 'bg-rose-600 hover:bg-rose-700', () => {
+showConfirmModal('폴더 삭제 ⚠️', '이 고객 폴더와 포함된 <b>모든 견적</b>이 기기에서 완전히 삭제됩니다.<br>계속하시겠습니까?', '삭제하기', 'bg-rose-600 hover:bg-rose-700', () => {
 let folders = getFolders();
 folders = folders.filter(f => f.id !== folderId);
 saveFolders(folders); 
-const syncDelete = document.getElementById('sync-delete-folder-cb')?.checked;
-if (syncDelete) { syncWithGoogleSheet('delete_folder', { folderId: folderId }); }
+
+
 if (currentEditingFolderId === folderId) { currentEditingFolderId = null; currentEditingQuoteId = null; }
 renderFolders();
 document.getElementById('manage-quote-modal').classList.remove('hidden');
@@ -1034,14 +1026,14 @@ document.getElementById('manage-quote-modal').classList.remove('hidden');
 }
 
 function confirmDeleteQuote(folderId, quoteId) {
-showConfirmModal('견적 삭제 ⚠️', '선택한 견적을 기기에서 삭제하시겠습니까?<br><br><label class="flex items-center justify-center gap-2 text-sm text-gray-700 bg-gray-50 p-2 rounded border border-gray-200 cursor-pointer"><input type="checkbox" id="sync-delete-cb" checked class="w-4 h-4 text-rose-500"> <span>구글 시트에서도 함께 삭제</span></label>', '삭제', 'bg-rose-500', () => {
+showConfirmModal('견적 삭제 ⚠️', '선택한 견적을 기기에서 삭제하시겠습니까?', '삭제', 'bg-rose-500', () => {
 let folders = getFolders();
 const fIndex = folders.findIndex(f => f.id === folderId);
 if(fIndex !== -1) {
 folders[fIndex].quotes = folders[fIndex].quotes.filter(q => q.id !== quoteId);
 saveFolders(folders); 
-const syncDelete = document.getElementById('sync-delete-cb')?.checked;
-if (syncDelete) { syncWithGoogleSheet('delete_quote', { quoteId: quoteId }); }
+
+
 if (currentEditingQuoteId === quoteId) currentEditingQuoteId = null;
 renderFolders();
 }
