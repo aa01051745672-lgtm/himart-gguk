@@ -10,7 +10,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#1e293b">
 
-<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.tailwindcss.com">
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <style>
@@ -63,6 +64,9 @@ margin: 0 auto;
 details > summary { list-style: none; }
 details > summary::-webkit-details-marker { display: none; }
 </style>
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/pwa-192x192.png">
+<meta name="apple-mobile-web-app-title" content="견적서">
 </head>
 <body class="text-gray-800">
 
@@ -77,6 +81,7 @@ details > summary::-webkit-details-marker { display: none; }
 <p class="text-gray-400 text-xs mt-0.5">실시간 계산 및 견적서 자동 동기화</p>
 </div>
 <div class="flex flex-wrap gap-1.5 justify-end">
+<button id="install-pwa-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-3 rounded-lg text-xs flex items-center shadow hidden" onclick="handlePWAInstall()">📲 앱 설치</button>
 <button onclick="openAdminSettings()" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-2.5 rounded-lg text-xs shadow">⚙️ 설정</button>
 <button onclick="checkAvailableModels()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-3 rounded-lg text-xs flex items-center shadow">🔍 권한확인</button>
 <button onclick="resetQuotation()" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-3 rounded-lg text-xs flex items-center shadow">🔄 초기화</button>
@@ -640,23 +645,46 @@ details > summary::-webkit-details-marker { display: none; }
 <input type="file" id="camera-input" accept="image/*" class="hidden">
 
 <script>
-// PWA 앱 설치
-(function initPWA() {
-const manifest = {
-name: "하이마트 견적 시스템", short_name: "견적앱", start_url: ".", display: "standalone", background_color: "#1e293b", theme_color: "#1e293b",
-icons: [{ src: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiB2aWV3Qm94PSIwIDAgMTkyIDE5MiI+PHJlY3Qgd2lkdGg9IjE5MiIgaGVpZ2h0PSIxOTIiIGZpbGw9IiNlZjQ0NDQiIHJ4PSI0MCIvPjx0ZXh0IHg9Ijk2IiB5PSIxMzAiIGZvbnQtc2l6ZT0iMTAwIiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtd2VpZ2h0PSJib2xkIj5IPC90ZXh0Pjwvc3ZnPg==", sizes: "192x192", type: "image/svg+xml", purpose: "any maskable" }]
-};
-const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
-const link = document.createElement('link'); link.rel = 'manifest'; link.href = URL.createObjectURL(blob); document.head.appendChild(link);
-})();
-
+// PWA 앱 설치 로직
 let deferredPrompt;
-window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; document.getElementById('install-app-btn')?.classList.remove('hidden'); });
 
-function installApp() {
-if (!deferredPrompt) return showModal('앱 설치 안내 📱', '현재 기기에서는 브라우저 메뉴의 <b>[홈 화면에 추가]</b>를 이용해주세요.', true, false);
-deferredPrompt.prompt(); deferredPrompt.userChoice.then((cr) => { if (cr.outcome === 'accepted') document.getElementById('install-app-btn').classList.add('hidden'); deferredPrompt = null; });
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const btn = document.getElementById('install-pwa-btn');
+  if (btn) btn.classList.remove('hidden');
+});
+
+async function handlePWAInstall() {
+  const btn = document.getElementById('install-pwa-btn');
+  
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted' && btn) {
+      btn.classList.add('hidden');
+    }
+    deferredPrompt = null;
+  } else if (/iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase())) {
+    showModal('홈 화면에 추가하는 법 (아이폰)', '1. 브라우저 하단의 <b>공유 버튼(네모 안의 위쪽 화살표)</b>을 누르세요.<br><br>2. 목록을 내려서 <b>[홈 화면에 추가]</b>를 선택하세요.', true, false);
+  } else {
+    showModal('앱 설치 안내 📱', '현재 기기에서는 브라우저 메뉴의 <b>[홈 화면에 추가]</b>를 이용해주세요.', true, false);
+  }
 }
+
+// 아이폰(iOS)에서 standalone이 아닐 경우 버튼 항상 노출
+document.addEventListener('DOMContentLoaded', () => {
+  const isIOS = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  
+  if (isIOS && !isStandalone) {
+    const btn = document.getElementById('install-pwa-btn');
+    if (btn) {
+      btn.classList.remove('hidden');
+      btn.innerHTML = '📲 홈화면 추가';
+    }
+  }
+});
 
 function downloadHTML() {
 const htmlContent = document.documentElement.outerHTML;
