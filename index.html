@@ -948,7 +948,7 @@ f.quotes.slice().reverse().forEach(q => {
 const qDiv = document.createElement('div');
 qDiv.className = "flex justify-between items-center bg-gray-50 p-2.5 rounded border border-gray-100";
 qDiv.innerHTML = `<div class="flex-1 min-w-0 pr-2"> <p class="text-xs font-bold text-gray-800 truncate">${q.title}</p>
-<p class="text-[10px] text-gray-500 mt-0.5">${q.date} · <span class="text-rose-600 font-semibold">${format(q.data.finalPrice)}원</span></p>
+<p class="text-[10px] text-gray-500 mt-0.5">${q.date} · <span class="text-rose-600 font-semibold">${format(q.data.netPrice || q.data.finalPrice)}원</span></p>
 </div>
 <div class="flex gap-1">
 <button type="button" onclick="loadQuotation('${f.id}', '${q.id}')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1 px-2 rounded shadow text-[10px]">불러오기</button>
@@ -982,10 +982,12 @@ showModal('복원 완료! ✅', `견적이 성공적으로 화면에 세팅되�
 
 function confirmDeleteFolder(event, folderId) {
 event.preventDefault(); // 아코디언 토글 방지
-showConfirmModal('폴더 삭제 ⚠️', '이 고객 폴더와 포함된 <b>모든 견적</b>이 기기에서 완전히 삭제됩니다.<br>계속하시겠습니까?', '삭제하기', 'bg-rose-600 hover:bg-rose-700', () => {
+showConfirmModal('폴더 삭제 ⚠️', '이 고객 폴더와 포함된 <b>모든 견적</b>이 기기에서 완전히 삭제됩니다.<br>계속하시겠습니까?<br><br><label class="flex items-center justify-center gap-2 text-sm text-gray-700 bg-gray-50 p-2 rounded border border-gray-200 cursor-pointer"><input type="checkbox" id="sync-delete-folder-cb" checked class="w-4 h-4 text-rose-500"> <span>구글 시트에서도 함께 삭제</span></label>', '삭제하기', 'bg-rose-600 hover:bg-rose-700', () => {
 let folders = getFolders();
 folders = folders.filter(f => f.id !== folderId);
-saveFolders(folders); if (typeof folderId !== 'undefined') { syncWithGoogleSheet('sync', getFolders()); } else { syncWithGoogleSheet('sync', getFolders()); }
+saveFolders(folders); 
+const syncDelete = document.getElementById('sync-delete-folder-cb')?.checked;
+if (syncDelete) { syncWithGoogleSheet('sync', getFolders()); }
 if (currentEditingFolderId === folderId) { currentEditingFolderId = null; currentEditingQuoteId = null; }
 renderFolders();
 document.getElementById('manage-quote-modal').classList.remove('hidden');
@@ -993,12 +995,14 @@ document.getElementById('manage-quote-modal').classList.remove('hidden');
 }
 
 function confirmDeleteQuote(folderId, quoteId) {
-showConfirmModal('견적 삭제 ⚠️', '선택한 견적을 삭제하시겠습니까?', '삭제', 'bg-rose-500', () => {
+showConfirmModal('견적 삭제 ⚠️', '선택한 견적을 기기에서 삭제하시겠습니까?<br><br><label class="flex items-center justify-center gap-2 text-sm text-gray-700 bg-gray-50 p-2 rounded border border-gray-200 cursor-pointer"><input type="checkbox" id="sync-delete-cb" checked class="w-4 h-4 text-rose-500"> <span>구글 시트에서도 함께 삭제</span></label>', '삭제', 'bg-rose-500', () => {
 let folders = getFolders();
 const fIndex = folders.findIndex(f => f.id === folderId);
 if(fIndex !== -1) {
 folders[fIndex].quotes = folders[fIndex].quotes.filter(q => q.id !== quoteId);
-saveFolders(folders); if (typeof folderId !== 'undefined') { syncWithGoogleSheet('sync', getFolders()); } else { syncWithGoogleSheet('sync', getFolders()); }
+saveFolders(folders); 
+const syncDelete = document.getElementById('sync-delete-cb')?.checked;
+if (syncDelete) { syncWithGoogleSheet('sync', getFolders()); }
 if (currentEditingQuoteId === quoteId) currentEditingQuoteId = null;
 renderFolders();
 }
@@ -1035,9 +1039,7 @@ const subHp = Array.from(document.querySelectorAll('.hp-sub-row')).map(row => ({
 
 return {
 id: 'Q-' + Date.now(), type, name, cPhone, phone, manager, no, itemSummary: itemSummary || '가전 견적',
-totalPrice: parseInt(document.getElementById('s1-total')?.innerText.replace(/[^0-9]/g, '') || 0),
-payPrice: parseInt(document.getElementById('s1-pay')?.innerText.replace(/[^0-9]/g, '') || 0),
-finalPrice: parseInt(document.getElementById('s1-final')?.innerText.replace(/[^0-9]/g, '') || 0),
+totalPrice: parseInt(document.getElementById('s1-total')?.innerText.replace(/[^0-9]/g, '') || 0),payPrice: parseInt(document.getElementById('s1-pay')?.innerText.replace(/[^0-9]/g, '') || 0),finalPrice: parseInt(document.getElementById('s1-pay')?.innerText.replace(/[^0-9]/g, '') || 0),netPrice: parseInt(document.getElementById('s1-final')?.innerText.replace(/[^0-9]/g, '') || 0),lumpSum: parseInt(document.getElementById('s1-total')?.innerText.replace(/[^0-9]/g, '') || 0),subSum: parseInt(document.getElementById('s1-total')?.innerText.replace(/[^0-9]/g, '') || 0),
 lumpItems, lumpCard, lumpDc, lumpPtTot, lumpPtUse, lumpCash, lumpHp, subItems, subCardCorp, subCardTier, subCash, subHp
 };
 }
@@ -1552,7 +1554,7 @@ document.getElementById('manage-quote-modal').classList.add('hidden');
 showModal('AI 견적 비교 중... ✨', `${f.name} 고객님의 여러 견적서를 분석하고 최적의 제안을 찾고 있습니다.`, false);
 
 let quotesData = f.quotes.map((q, idx) => {
-  return `[견적 ${idx + 1}: ${q.title}]\n최종 체감가: ${q.data.finalPrice}원\n할인액: ${q.data.lumpDc}원\n하이프리드: ${q.data.lumpHp ? q.data.lumpHp.map(h => h.val).join(',') : '없음'}`;
+  return `[견적 ${idx + 1}: ${q.title}]\n최종 체감가: ${q.data.netPrice || q.data.finalPrice}원\n할인액: ${q.data.lumpDc}원\n하이프리드: ${q.data.lumpHp ? q.data.lumpHp.map(h => h.val).join(',') : '없음'}`;
 }).join('\n\n');
 
 try {
