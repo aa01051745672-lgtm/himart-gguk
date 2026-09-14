@@ -855,7 +855,7 @@ currentEditingQuoteId = newQuote.id;
 }
 
 saveFolders(folders); 
-const savedFolder = folders.find(f => f.id === currentEditingFolderId) || folders.find(f => f.id === folderId);
+const savedFolder = folders.find(f => f.id === currentEditingFolderId);
 if (savedFolder) syncWithGoogleSheet('upsert_folder', savedFolder);
 document.getElementById('save-quote-modal').classList.add('hidden');
 showModal('저장 완료 ✅', '기기에 견적이 안전하게 저장되었습니다.', true, false);
