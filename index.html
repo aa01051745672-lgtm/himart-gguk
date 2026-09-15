@@ -70,10 +70,10 @@ details > summary::-webkit-details-marker { display: none; }
 <meta name="apple-mobile-web-app-title" content="견적서">
 <script>
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js?v=' + new Date().getTime(), { scope: '/' })
-        .then(registration => console.log('SW registered'))
-        .catch(error => console.log('SW registration failed:', error));
+    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+      for(let registration of registrations) {
+        registration.unregister();
+      }
     });
   }
 </script>
@@ -91,7 +91,7 @@ details > summary::-webkit-details-marker { display: none; }
 <p class="text-gray-400 text-xs mt-0.5">실시간 계산 및 견적서 자동 동기화</p>
 </div>
 <div class="flex flex-wrap gap-1.5 justify-end">
-<button id="install-pwa-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-3 rounded-lg text-xs flex items-center shadow" onclick="handlePWAInstall()">📲 앱 설치</button>
+
 <button onclick="openAdminSettings()" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-2.5 rounded-lg text-xs shadow">⚙️ 설정</button>
 <button onclick="checkAvailableModels()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-3 rounded-lg text-xs flex items-center shadow">🔍 권한확인</button>
 <button onclick="resetQuotation()" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-3 rounded-lg text-xs flex items-center shadow">🔄 초기화</button>
@@ -655,52 +655,9 @@ details > summary::-webkit-details-marker { display: none; }
 <input type="file" id="camera-input" accept="image/*" class="hidden">
 
 <script>
-// PWA 앱 설치 로직
-let deferredPrompt;
 
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  const btn = document.getElementById('install-pwa-btn');
-  if (btn) btn.classList.remove('hidden');
-});
 
-async function handlePWAInstall() {
-  const btn = document.getElementById('install-pwa-btn');
-  const ua = window.navigator.userAgent.toLowerCase();
-  
-  // 1. 카카오톡, 네이버 등 인앱 브라우저 체크
-  if (ua.match(/kakaotalk|naver|line|instagram|inapp|snapchat|fb/i)) {
-    showModal('🚨 카카오톡에서는 설치가 안돼요!', '현재 카카오톡(또는 네이버) 안에서 창을 열으셨네요!<br><br>앱 설치는 기본 브라우저에서만 가능합니다.<br>우측 하단(또는 상단)의 메뉴(⋮)를 눌러서<br><b>[다른 브라우저로 열기]</b>를 선택하신 후, 화면이 다시 열리면 거기서 설치 버튼을 눌러주세요!', true, false);
-    return;
-  }
-  
-  if (deferredPrompt) {
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted' && btn) {
-      btn.classList.add('hidden');
-    }
-    deferredPrompt = null;
-  } else if (/iphone|ipad|ipod/.test(ua)) {
-    showModal('🍎 아이폰 홈 화면에 추가', '1. 브라우저 하단의 <b>공유 버튼(네모 안의 위쪽 화살표)</b>을 누르세요.<br><br>2. 목록을 내려서 <b>[홈 화면에 추가]</b>를 선택하세요.', true, false);
-  } else {
-    showModal('📱 앱 설치(홈화면 추가) 안내', '자동 팝업이 뜨지 않는 경우, 브라우저 우측 하단이나 상단 메뉴(☰ 또는 ⋮)를 누르신 후<br><br><b>[현재 페이지 추가] → [홈 화면]</b><br>또는 <b>[홈 화면에 추가]</b>를 눌러 직접 설치해주세요!', true, false);
-  }
-}
 
-// 앱이 이미 설치된 상태(standalone)라면 버튼 숨김 처리
-document.addEventListener('DOMContentLoaded', () => {
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-  const isIOS = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
-  const btn = document.getElementById('install-pwa-btn');
-  
-  if (isStandalone && btn) {
-    btn.classList.add('hidden');
-  } else if (isIOS && btn) {
-    btn.innerHTML = '📲 홈화면 추가';
-  }
-});
 
 function downloadHTML() {
 const htmlContent = document.documentElement.outerHTML;
